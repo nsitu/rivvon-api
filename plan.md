@@ -72,25 +72,27 @@ Rivvon renders animated textures in 3D scene
 │  (GitHub Pages) │     │   (rivvon.ca)    │     │   (Identity)    │
 └────────┬────────┘     └────────┬─────────┘     └────────┬────────┘
          │                       │                        │
-         │ Upload KTX2           │ Fetch textures         │ PKCE + JWT
+         │ Upload KTX2           │ Fetch textures         │ PKCE flow
+         │ + Bearer token        │                        │ (SPA SDK)
          ▼                       ▼                        ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │                    Cloudflare Worker (API)                         │
 │                    https://api.rivvon.ca                           │
 ├────────────────────────────────────────────────────────────────────┤
-│  /auth/callback  - OAuth callback                                  │
 │  /upload         - Request signed R2 upload URL (authenticated)   │
 │  /textures       - List available textures (public)               │
 │  /textures/:id   - Get texture metadata (public)                  │
+│                                                                    │
+│  JWT validation via jose + Auth0 JWKS (stateless)                │
 └─────────────────────────┬──────────────────────────────────────────┘
                           │
-         ┌────────────────┼────────────────┐
-         ▼                ▼                ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│     D1      │   │     R2      │   │     KV      │
-│  (SQLite)   │   │   (Blobs)   │   │  (Sessions) │
-│  Metadata   │   │ KTX2 files  │   │  Optional   │
-└─────────────┘   └─────────────┘   └─────────────┘
+         ┌────────────────┴────────────────┐
+         ▼                                  ▼
+┌─────────────┐                    ┌─────────────┐
+│     D1      │                    │     R2      │
+│  (SQLite)   │                    │   (Blobs)   │
+│  Metadata   │                    │ KTX2 files  │
+└─────────────┘                    └─────────────┘
 ```
 
 ---
@@ -116,8 +118,7 @@ rivvon-api/
 ├── src/
 │   ├── index.ts                # Main worker entry point
 │   ├── routes/
-│   │   ├── auth.ts             # Auth0 callback & token handling
-│   │   ├── upload.ts           # R2 signed URL generation
+│   │   ├── upload.ts           # R2 signed URL generation (authenticated)
 │   │   └── textures.ts         # Public texture metadata API
 │   ├── middleware/
 │   │   └── auth.ts             # JWT verification with jose
@@ -151,6 +152,27 @@ rivvon-api/
 ---
 
 ## Phase 2: Auth0 Configuration
+
+### 2.0 Authentication Flow Overview
+
+The authentication follows a **stateless SPA flow**:
+
+```
+1. User clicks "Login" in Slyce frontend
+2. Slyce redirects to Auth0 login page (PKCE flow)
+3. Auth0 authenticates user and redirects back to Slyce
+4. Slyce receives authorization code and exchanges it for JWT access token
+5. Slyce stores token (memory/localStorage) and includes it in API requests
+6. API validates JWT using Auth0's public JWKS endpoint (via jose library)
+7. API processes authenticated requests
+```
+
+**Key points:**
+- Auth0 redirects back to **Slyce frontend**, not the API
+- The API **never handles OAuth callbacks**
+- The API is **stateless** - no sessions, no cookies
+- JWT validation happens on every authenticated request
+- Token validation uses Auth0's public JWKS (no shared secrets needed)
 
 ### 2.1 Auth0 Application Setup (SPA - for Slyce Frontend)
 
@@ -362,7 +384,6 @@ wrangler d1 execute rivvon-textures --file=./src/db/schema.sql
 // src/index.ts
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { authRoutes } from './routes/auth';
 import { uploadRoutes } from './routes/upload';
 import { textureRoutes } from './routes/textures';
 
@@ -391,7 +412,7 @@ app.use('*', async (c, next) => {
 app.get('/', (c) => c.json({ status: 'ok', service: 'rivvon-api' }));
 
 // Mount routes
-app.route('/auth', authRoutes);
+// Note: No /auth routes needed - Slyce handles Auth0 directly
 app.route('/upload', uploadRoutes);
 app.route('/textures', textureRoutes);
 
@@ -756,16 +777,28 @@ Set these in GitHub repository settings → Secrets and variables → Actions:
 // In Slyce frontend - add to stores or composables
 import { createAuth0Client } from '@auth0/auth0-spa-js';
 
+// Initialize Auth0 client (runs on app startup)
 const auth0 = await createAuth0Client({
   domain: 'your-tenant.auth0.com',
   clientId: 'your-client-id',
   authorizationParams: {
     audience: 'https://api.rivvon.ca',
-    redirect_uri: window.location.origin + '/callback',
+    redirect_uri: window.location.origin + '/callback', // Slyce handles callback
   },
 });
 
-// Get access token for API calls
+// Handle Auth0 callback on page load (if redirected from Auth0)
+if (window.location.search.includes('code=')) {
+  await auth0.handleRedirectCallback();
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+// Login function
+async function login() {
+  await auth0.loginWithRedirect();
+}
+
+// Get access token for API calls (auto-refreshes if needed)
 async function getAccessToken() {
   return await auth0.getTokenSilently();
 }

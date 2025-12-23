@@ -1,0 +1,20 @@
+{
+  "name": "rivvon-api",
+  "version": "1.0.0",
+  "description": "A backend for handling video textures, mediating between rivvon and slyce.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nsitu/rivvon-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nsitu/rivvon-api/issues"
+  },
+  "homepage": "https://github.com/nsitu/rivvon-api#readme"
+}
