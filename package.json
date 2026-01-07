@@ -2,19 +2,37 @@
   "name": "rivvon-api",
   "version": "1.0.0",
   "description": "A backend for handling video textures, mediating between rivvon and slyce.",
-  "main": "index.js",
+  "main": "src/index.ts",
   "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nsitu/rivvon-api.git"
   },
-  "keywords": [],
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "ktx2",
+    "texture",
+    "api"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/nsitu/rivvon-api/issues"
   },
-  "homepage": "https://github.com/nsitu/rivvon-api#readme"
+  "homepage": "https://github.com/nsitu/rivvon-api#readme",
+  "dependencies": {
+    "hono": "^4.11.1",
+    "jose": "^6.1.3",
+    "nanoid": "^5.1.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251223.0",
+    "wrangler": "^4.56.0",
+    "typescript": "^5.9.3"
+  }
 }

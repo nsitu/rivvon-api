@@ -1,0 +1,22 @@
+name = "rivvon-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "rivvon-textures"
+database_id = "<will be generated>"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "rivvon-textures"
+
+# Environment variables (non-secret)
+[vars]
+CORS_ORIGINS = "https://slyce.rivvon.ca,https://rivvon.ca"
+
+# Secrets (set via wrangler secret put)
+# AUTH0_DOMAIN
+# AUTH0_AUDIENCE
