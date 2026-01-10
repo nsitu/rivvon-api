@@ -127,10 +127,10 @@ uploadRoutes.post('/texture-set/:id/complete', async (c) => {
     `).bind(object.size, tile.id).run();
     }
 
-    // Mark as complete
+    // Mark as complete and make public by default
     await c.env.DB.prepare(`
     UPDATE texture_sets 
-    SET status = 'complete', updated_at = unixepoch()
+    SET status = 'complete', is_public = 1, updated_at = unixepoch()
     WHERE id = ?
   `).bind(textureSetId).run();
 
