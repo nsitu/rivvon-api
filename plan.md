@@ -23,15 +23,15 @@ This API is part of the **Rivvon ecosystem** - a suite of tools for creating and
 - **Repository**: [github.com/nsitu/rivvon](https://github.com/nsitu/rivvon)
 - **Live site**: [rivvon.ca](https://rivvon.ca)
 - **Purpose**: WebGL/WebGPU frontend that renders KTX2 texture arrays along SVG paths to create animated ribbons
-- **Tech stack**: Vue 3, Three.js, Vite, GitHub Pages
+- **Tech stack**: Vue 3, Three.js, Vite, CloudFlare Pages
 - **Role**: Consumes textures from this API (public read access)
 
 ### Slyce (Texture Encoder/Creator)
 - **Repository**: [github.com/nsitu/slyce](https://github.com/nsitu/slyce)
-- **Live site**: [slyce.rivvon.ca](https://slyce.rivvon.ca) (to be configured)
+- **Live site**: [slyce.rivvon.ca](https://slyce.rivvon.ca)  
 - **Currently**: [nsitu.github.io/slyce](https://nsitu.github.io/slyce)
 - **Purpose**: Browser-based video processor that samples cross-sections from videos and encodes them as KTX2 texture arrays
-- **Tech stack**: Vue 3, WebCodecs, mediabunny, Basis Universal (WASM), Vite, GitHub Pages
+- **Tech stack**: Vue 3, WebCodecs, mediabunny, Basis Universal (WASM), Vite, CloudFlare Pages
 - **Role**: Creates textures and uploads them to this API (authenticated write access)
 
 ### This Repository (Backend API)
@@ -69,7 +69,7 @@ Rivvon renders animated textures in 3D scene
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │  Slyce Frontend │     │  Rivvon Frontend │     │     Auth0       │
-│  (GitHub Pages) │     │   (rivvon.ca)    │     │   (Identity)    │
+│  (CF     Pages) │     │   (rivvon.ca)    │     │   (Identity)    │
 └────────┬────────┘     └────────┬─────────┘     └────────┬────────┘
          │                       │                        │
          │ Upload KTX2           │ Fetch textures         │ PKCE flow
@@ -200,7 +200,7 @@ The authentication follows a **stateless SPA flow**:
 
 ```bash
 # Auth0 Configuration (store as Cloudflare secrets)
-AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_DOMAIN=login.rivvon.ca
 AUTH0_AUDIENCE=https://api.rivvon.ca
 AUTH0_CLIENT_ID=your-client-id
 ```
@@ -716,56 +716,149 @@ textureRoutes.get('/:setId/tile/:index', async (c) => {
 
 ---
 
-## Phase 6: GitHub Actions Deployment
+## Phase 6: Deployment Strategy
 
-### 6.1 Workflow Configuration
+This project uses a **two-stage deployment approach**:
 
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to Cloudflare Workers
+1. **Wrangler Bootstrap** - One-time setup to create resources, set secrets, and verify everything works
+2. **Git Integration** - Ongoing production deployments via Cloudflare's Git integration
 
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+### 6.1 Stage 1: Wrangler Bootstrap (One-Time Setup)
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    name: Deploy Worker
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+Before connecting Git, use Wrangler to bootstrap all resources and verify the Worker runs end-to-end.
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          cache: 'npm'
+#### Step 1: Commit Code First
 
-      - name: Install dependencies
-        run: npm ci
+Ensure your code is committed and ready:
 
-      - name: Run D1 migrations
-        run: npx wrangler d1 migrations apply rivvon-textures --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy to Cloudflare Workers
-        run: npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+```bash
+# Make sure everything is committed
+git add .
+git commit -m "Initial rivvon-api implementation"
 ```
 
-### 6.2 Required GitHub Secrets
+#### Step 2: Login to Cloudflare
 
-Set these in GitHub repository settings → Secrets and variables → Actions:
+```bash
+wrangler login
+```
 
-- `CLOUDFLARE_API_TOKEN` - API token with Workers, D1, and R2 permissions
-- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+#### Step 3: Create D1 Database
+
+```bash
+wrangler d1 create rivvon-textures
+```
+
+Copy the `database_id` from output and update `wrangler.toml`:
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "rivvon-textures"
+database_id = "<paste-id-here>"
+```
+
+#### Step 4: Create R2 Bucket
+
+```bash
+wrangler r2 bucket create rivvon-textures
+```
+
+#### Step 5: Apply Database Schema
+
+```bash
+wrangler d1 execute rivvon-textures --file=./src/db/schema.sql --remote
+```
+
+#### Step 6: Set Secrets
+
+```bash
+wrangler secret put AUTH0_DOMAIN
+# Enter: login.rivvon.ca
+
+wrangler secret put AUTH0_AUDIENCE
+# Enter: https://api.rivvon.ca
+```
+
+#### Step 7: Initial Deploy (Verify Everything Works)
+
+```bash
+wrangler deploy
+```
+
+Test the deployment:
+```bash
+curl https://rivvon-api.<your-subdomain>.workers.dev/
+# Should return: {"status":"ok","service":"rivvon-api"}
+```
+
+#### Step 8: Commit wrangler.toml with Database ID
+
+```bash
+git add wrangler.toml
+git commit -m "Add D1 database_id to wrangler.toml"
+git push origin main
+```
+
+### 6.2 Stage 2: Connect Git Integration
+
+Now that the Worker is verified, connect Git for ongoing deployments.
+
+#### Step 1: Connect Repository to Cloudflare
+
+1. **In Cloudflare Dashboard** → Workers & Pages:
+   - Find your deployed Worker (`rivvon-api`)
+   - Go to **Settings** → **Builds & Deployments** → **Connect to Git**
+   - Select **GitHub** and authorize Cloudflare (if first time)
+   - Select repository: `nsitu/rivvon-api`
+   - Select branch: `main`
+
+2. **Configure Build Settings**:
+   - **Production branch**: `main`
+   - Cloudflare will detect `wrangler.toml` automatically
+
+3. **Save and Deploy**
+
+#### Step 2: Add Custom Domain
+
+1. Go to Worker → **Settings** → **Triggers** → **Custom Domains**
+2. Add: `api.rivvon.ca`
+3. Cloudflare will configure DNS automatically
+
+### 6.3 Ongoing Workflow (After Git Connected)
+
+| Task | Tool |
+|------|------|
+| Production deployments | **Git push** (automatic) |
+| Local development | `wrangler dev` |
+| D1 migrations | `wrangler d1 execute --remote` |
+| Add/update secrets | `wrangler secret put` |
+| View live logs | `wrangler tail` |
+| Manage R2 buckets | `wrangler r2` |
+
+**⚠️ Important**: After Git is connected, **stop using `wrangler deploy` for production**. Git becomes the single source of truth for deployments.
+
+### 6.4 Avoiding Drift
+
+To keep Wrangler and Git in sync:
+
+- ✅ Always commit `wrangler.toml` changes before deploying
+- ✅ Use Git for all code deployments
+- ✅ Use Wrangler only for: `dev`, `secret`, `d1`, `r2`, `tail`
+- ❌ Don't run `wrangler deploy` after Git is connected
+- ❌ Don't edit Worker code in Cloudflare dashboard
+
+### 6.5 What Persists After Git Connected
+
+| Resource | Status |
+|----------|--------|
+| D1 Database | ✅ Persists (data intact) |
+| R2 Bucket | ✅ Persists (files intact) |
+| Secrets | ✅ Persists (AUTH0_DOMAIN, AUTH0_AUDIENCE) |
+| Bindings | ✅ Managed by wrangler.toml |
+| Custom Domain | ✅ Persists |
+
+Git deploys rebuild and redeploy the Worker using committed `wrangler.toml` config.
 
 ---
 
@@ -779,7 +872,7 @@ import { createAuth0Client } from '@auth0/auth0-spa-js';
 
 // Initialize Auth0 client (runs on app startup)
 const auth0 = await createAuth0Client({
-  domain: 'your-tenant.auth0.com',
+  domain: 'login.rivvon.ca', // CNAME points to my-tenant.auth0.com
   clientId: 'your-client-id',
   authorizationParams: {
     audience: 'https://api.rivvon.ca',
@@ -841,7 +934,7 @@ async function uploadTextureSet(zipBlob, metadata) {
 
 ---
 
-## Phase 8: Integration with Rivvon
+## Phase 8: Integration with Rivvon Frontend
 
 ### 8.1 Fetch Available Textures
 
