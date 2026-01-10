@@ -15,7 +15,7 @@ bucket_name = "rivvon-textures"
 
 # Environment variables (non-secret)
 [vars]
-CORS_ORIGINS = "https://slyce.rivvon.ca,https://rivvon.ca"
+CORS_ORIGINS = "https://slyce.rivvon.ca,https://rivvon.ca,http://localhost:5173,http://localhost:5174"
 
 # Secrets (set via wrangler secret put)
 # AUTH0_DOMAIN
