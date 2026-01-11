@@ -238,3 +238,60 @@ uploadRoutes.put('/texture-set/:setId/thumbnail', async (c) => {
     size: body.byteLength
   });
 });
+
+// Delete a texture set (owner only)
+uploadRoutes.delete('/texture-set/:id', async (c) => {
+  const auth = c.get('auth');
+  const textureSetId = c.req.param('id');
+
+  // Verify ownership
+  const textureSet = await c.env.DB.prepare(`
+    SELECT * FROM texture_sets WHERE id = ? AND owner_id = ?
+  `).bind(textureSetId, auth.userId).first();
+
+  if (!textureSet) {
+    return c.json({ error: 'Texture set not found or not owned by you' }, 404);
+  }
+
+  // Get all tiles to delete from R2
+  const tiles = await c.env.DB.prepare(`
+    SELECT r2_key FROM texture_tiles WHERE texture_set_id = ?
+  `).bind(textureSetId).all();
+
+  // Collect all R2 keys to delete
+  const r2KeysToDelete: string[] = [];
+
+  // Add tile keys
+  for (const tile of tiles.results) {
+    r2KeysToDelete.push(tile.r2_key as string);
+  }
+
+  // Add thumbnail if exists
+  if (textureSet.thumbnail_url) {
+    // Extract R2 key from thumbnail URL (e.g., "https://cdn.rivvon.ca/thumbnails/abc.jpg" -> "thumbnails/abc.jpg")
+    const thumbnailUrl = textureSet.thumbnail_url as string;
+    const thumbnailKey = thumbnailUrl.replace('https://cdn.rivvon.ca/', '');
+    r2KeysToDelete.push(thumbnailKey);
+  }
+
+  // Delete all files from R2
+  if (r2KeysToDelete.length > 0) {
+    await c.env.BUCKET.delete(r2KeysToDelete);
+  }
+
+  // Delete texture_tiles records
+  await c.env.DB.prepare(`
+    DELETE FROM texture_tiles WHERE texture_set_id = ?
+  `).bind(textureSetId).run();
+
+  // Delete texture_set record
+  await c.env.DB.prepare(`
+    DELETE FROM texture_sets WHERE id = ?
+  `).bind(textureSetId).run();
+
+  return c.json({
+    success: true,
+    message: 'Texture set deleted',
+    deletedFiles: r2KeysToDelete.length
+  });
+});
