@@ -1,0 +1,26 @@
+{
+    "rules": [
+        {
+            "allowed": {
+                "origins": [
+                    "https://rivvon.ca",
+                    "https://slyce.rivvon.ca",
+                    "http://localhost:5173",
+                    "http://localhost:5174"
+                ],
+                "methods": [
+                    "GET",
+                    "HEAD"
+                ],
+                "headers": [
+                    "*"
+                ]
+            },
+            "exposeHeaders": [
+                "ETag",
+                "Content-Length"
+            ],
+            "maxAgeSeconds": 3600
+        }
+    ]
+}
