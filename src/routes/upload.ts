@@ -15,7 +15,7 @@ export const uploadRoutes = new Hono<{ Bindings: Bindings }>();
 uploadRoutes.use('*', verifyAuth);
 
 // Create a new texture set and get upload URLs
-uploadRoutes.post('/texture-set', async (c) => {
+uploadRoutes.post('/', async (c) => {
   const auth = c.get('auth');
   const body = await c.req.json();
 
@@ -101,7 +101,7 @@ uploadRoutes.post('/texture-set', async (c) => {
 });
 
 // Mark upload as complete
-uploadRoutes.post('/texture-set/:id/complete', async (c) => {
+uploadRoutes.post('/:id/complete', async (c) => {
   const auth = c.get('auth');
   const textureSetId = c.req.param('id');
 
@@ -145,7 +145,7 @@ uploadRoutes.post('/texture-set/:id/complete', async (c) => {
 });
 
 // Upload a single tile (alternative to presigned URLs)
-uploadRoutes.put('/texture-set/:setId/tile/:index', async (c) => {
+uploadRoutes.put('/:setId/tile/:index', async (c) => {
   const auth = c.get('auth');
   const setId = c.req.param('setId');
   const tileIndex = parseInt(c.req.param('index'));
@@ -183,7 +183,7 @@ uploadRoutes.put('/texture-set/:setId/tile/:index', async (c) => {
 });
 
 // Upload thumbnail for a texture set
-uploadRoutes.put('/texture-set/:setId/thumbnail', async (c) => {
+uploadRoutes.put('/:setId/thumbnail', async (c) => {
   const auth = c.get('auth');
   const setId = c.req.param('setId');
 
@@ -240,7 +240,7 @@ uploadRoutes.put('/texture-set/:setId/thumbnail', async (c) => {
 });
 
 // Delete a texture set (owner only)
-uploadRoutes.delete('/texture-set/:id', async (c) => {
+uploadRoutes.delete('/:id', async (c) => {
   const auth = c.get('auth');
   const textureSetId = c.req.param('id');
 

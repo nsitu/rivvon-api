@@ -54,8 +54,9 @@ app.get('/my-textures', verifyAuth, async (c) => {
 });
 
 // Mount routes
-// Note: No /auth routes needed - Slyce handles Auth0 directly
-app.route('/upload', uploadRoutes);
+// /textures - public read-only endpoints
+// /texture-set - authenticated write operations
+app.route('/texture-set', uploadRoutes);
 app.route('/textures', textureRoutes);
 
 export default app;
