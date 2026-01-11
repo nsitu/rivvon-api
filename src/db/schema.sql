@@ -1,5 +1,15 @@
 -- src/db/schema.sql
 
+-- Users (synced from Auth0 on first upload)
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,                  -- Auth0 user ID (sub claim)
+    name TEXT,                            -- Display name
+    email TEXT,                           -- Email address
+    picture TEXT,                         -- Avatar URL
+    created_at INTEGER DEFAULT (unixepoch()),
+    last_login INTEGER DEFAULT (unixepoch())
+);
+
 -- Texture sets (a collection of KTX2 tiles)
 CREATE TABLE IF NOT EXISTS texture_sets (
     id TEXT PRIMARY KEY,
@@ -25,7 +35,9 @@ CREATE TABLE IF NOT EXISTS texture_sets (
     
     -- Status
     status TEXT DEFAULT 'pending',        -- pending, uploading, complete, error
-    is_public INTEGER DEFAULT 0           -- Whether publicly listed
+    is_public INTEGER DEFAULT 0,          -- Whether publicly listed
+    
+    FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 
 -- Individual texture tiles

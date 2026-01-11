@@ -32,7 +32,7 @@ export async function verifyAuth(c: Context, next: Next) {
         // Attach user info to context
         c.set('auth', {
             userId: payload.sub,
-            permissions: payload.permissions || [],
+            permissions: (payload.permissions as string[]) || [],
         } as AuthContext);
 
         await next();

@@ -1,6 +1,7 @@
 // src/routes/upload.ts
 import { Hono } from 'hono';
 import { verifyAuth } from '../middleware/auth';
+import { syncUser } from '../utils/user';
 import { nanoid } from 'nanoid';
 
 type Bindings = {
@@ -26,7 +27,13 @@ uploadRoutes.post('/texture-set', async (c) => {
     layerCount,
     crossSectionType,
     sourceMetadata,
+    userProfile,
   } = body;
+
+  // Sync user info if provided
+  if (userProfile) {
+    await syncUser(c.env.DB, auth.userId, userProfile);
+  }
 
   // Validate required fields
   if (!name || !tileResolution || !tileCount || !layerCount) {

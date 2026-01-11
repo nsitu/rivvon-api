@@ -15,12 +15,16 @@ textureRoutes.get('/', async (c) => {
 
     const results = await c.env.DB.prepare(`
     SELECT 
-      id, name, description, thumbnail_url,
-      tile_resolution, tile_count, layer_count,
-      cross_section_type, created_at
-    FROM texture_sets
-    WHERE status = 'complete' AND is_public = 1
-    ORDER BY created_at DESC
+      ts.id, ts.name, ts.description, ts.thumbnail_url,
+      ts.tile_resolution, ts.tile_count, ts.layer_count,
+      ts.cross_section_type, ts.created_at,
+      u.id as owner_id,
+      u.name as owner_name,
+      u.picture as owner_picture
+    FROM texture_sets ts
+    LEFT JOIN users u ON ts.owner_id = u.id
+    WHERE ts.status = 'complete' AND ts.is_public = 1
+    ORDER BY ts.created_at DESC
     LIMIT ? OFFSET ?
   `).bind(limit, offset).all();
 
@@ -35,8 +39,14 @@ textureRoutes.get('/:id', async (c) => {
     const textureSetId = c.req.param('id');
 
     const textureSet = await c.env.DB.prepare(`
-    SELECT * FROM texture_sets 
-    WHERE id = ? AND status = 'complete'
+    SELECT 
+      ts.*,
+      u.id as owner_id,
+      u.name as owner_name,
+      u.picture as owner_picture
+    FROM texture_sets ts
+    LEFT JOIN users u ON ts.owner_id = u.id
+    WHERE ts.id = ? AND ts.status = 'complete'
   `).bind(textureSetId).first();
 
     if (!textureSet) {
