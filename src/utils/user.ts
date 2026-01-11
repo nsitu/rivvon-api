@@ -14,8 +14,8 @@ export interface UserProfile {
  * @param profile - Optional user profile from request body
  */
 export async function syncUser(
-    db: D1Database, 
-    userId: string, 
+    db: D1Database,
+    userId: string,
     profile?: UserProfile
 ): Promise<void> {
     // Use INSERT OR REPLACE to upsert user
