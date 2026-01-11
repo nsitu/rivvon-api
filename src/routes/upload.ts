@@ -191,12 +191,12 @@ uploadRoutes.put('/texture-set/:setId/thumbnail', async (c) => {
 
   // Get content type from request
   const contentType = c.req.header('Content-Type') || 'image/jpeg';
-  
+
   // Validate content type
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowedTypes.includes(contentType)) {
-    return c.json({ 
-      error: 'Invalid content type. Allowed: image/jpeg, image/png, image/webp' 
+    return c.json({
+      error: 'Invalid content type. Allowed: image/jpeg, image/png, image/webp'
     }, 400);
   }
 
@@ -225,9 +225,9 @@ uploadRoutes.put('/texture-set/:setId/thumbnail', async (c) => {
     WHERE id = ?
   `).bind(thumbnailUrl, setId).run();
 
-  return c.json({ 
-    success: true, 
+  return c.json({
+    success: true,
     thumbnailUrl,
-    size: body.byteLength 
+    size: body.byteLength
   });
 });
