@@ -14,6 +14,30 @@ export const uploadRoutes = new Hono<{ Bindings: Bindings }>();
 // All upload routes require authentication
 uploadRoutes.use('*', verifyAuth);
 
+// Get all texture sets owned by the current user
+uploadRoutes.get('/my-textures', async (c) => {
+  const auth = c.get('auth');
+  const limit = parseInt(c.req.query('limit') || '50');
+  const offset = parseInt(c.req.query('offset') || '0');
+
+  const results = await c.env.DB.prepare(`
+    SELECT 
+      id, name, description, thumbnail_url,
+      tile_resolution, tile_count, layer_count,
+      cross_section_type, status, is_public,
+      created_at, updated_at
+    FROM texture_sets
+    WHERE owner_id = ?
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).bind(auth.userId, limit, offset).all();
+
+  return c.json({
+    textures: results.results,
+    pagination: { limit, offset },
+  });
+});
+
 // Create a new texture set and get upload URLs
 uploadRoutes.post('/texture-set', async (c) => {
   const auth = c.get('auth');
